@@ -1,28 +1,32 @@
 //
-//  MapTabView.swift
+//  MapTab.swift
 //  ios-project
 //
-//  Created by student6 on 2026-07-05.
+//  Created by student6 on 2026-07-06.
 //
 
 import SwiftUI
 
 struct MapTabView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "map.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.blue)
-
+        VStack(spacing: 20) {
+            Text("Hello, World!")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
             Text("Map")
-                .font(.largeTitle.bold())
+                .font(.title)
+                .foregroundStyle(.cyan)
 
-            Text("Completed sessions will appear as pins on the map.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+            Text("Fixy Automobiles")
+                .font(.title3)
+                .foregroundStyle(.gray)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        .navigationTitle("Map")
+        .background(Color.white)
     }
+}
+
+#Preview {
+    MapTabView()
 }

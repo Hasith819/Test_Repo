@@ -15,10 +15,11 @@ enum QuizState {
     case finished
 }
 
+
 @MainActor
 class QuizRushViewModel: ObservableObject {
 
-    @Published var questions: [TriviaQuestion] = []
+    @Published var questions: [Question] = []
     @Published var currentIndex = 0
 
     @Published var score = 0
@@ -30,15 +31,17 @@ class QuizRushViewModel: ObservableObject {
     @Published var isCorrect = false
 
     @Published var shuffledAnswers: [String] = []
-
+    
     @AppStorage("QuizRushHighScore")
-    private var highScore: Int = 0
+     private var highScore: Int = 0
 
-    @Published var bestScore: Int = 0
+     @Published var bestScore: Int = 0
+    
+    private let service = TriviaApiService()
 
-    private let service = TriviaAPI()
-
+    // MARK: - Load Quiz
     func loadQuiz() async {
+
         state = .loading
 
         do {
@@ -53,20 +56,28 @@ class QuizRushViewModel: ObservableObject {
             prepareAnswers()
 
             state = .loaded
+
         } catch {
             state = .failed
         }
     }
 
-    var currentQuestion: TriviaQuestion {
+    // MARK: - Current Question
+    var currentQuestion: Question {
         questions[currentIndex]
     }
 
+    // MARK: - Shuffle ONCE per question
     func prepareAnswers() {
-        shuffledAnswers = ([currentQuestion.correct_answer] + currentQuestion.incorrect_answers).shuffled()
+        shuffledAnswers =
+            ([currentQuestion.correct_answer] +
+             currentQuestion.incorrect_answers)
+            .shuffled()
     }
 
+    // MARK: - Answer Logic
     func answerTapped(_ answer: String) {
+
         selectedAnswer = answer
 
         if answer == currentQuestion.correct_answer {
@@ -80,20 +91,24 @@ class QuizRushViewModel: ObservableObject {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+
             self.selectedAnswer = nil
 
-            if self.currentIndex == self.questions.count - 1 {
-                self.state = .finished
+                if self.currentIndex == self.questions.count - 1 {
 
-                if self.score > self.highScore {
-                    self.highScore = self.score
+                    self.state = .finished
+
+                    // SAVE HIGH SCORE
+                    if self.score > self.highScore {
+                        self.highScore = self.score
+                    }
+
+                    self.bestScore = self.highScore
+
+                } else {
+                    self.currentIndex += 1
+                    self.prepareAnswers()
                 }
-
-                self.bestScore = self.highScore
-            } else {
-                self.currentIndex += 1
-                self.prepareAnswers()
-            }
         }
     }
 }
@@ -102,17 +117,19 @@ struct QuizRushView: View {
 
     @StateObject private var vm = QuizRushViewModel()
 
+    // MARK: - Button Color
     func buttonColor(for answer: String) -> Color {
+
         guard let selected = vm.selectedAnswer else {
             return .blue
         }
-
+        
         let correct = vm.currentQuestion.correct_answer
 
         if answer == correct {
             return .green
         }
-
+        
         if answer == selected {
             return .red
         }
@@ -121,11 +138,15 @@ struct QuizRushView: View {
     }
 
     var body: some View {
+
         ZStack {
+            
             AnimatedBackground()
 
             switch vm.state {
+
             case .loading:
+
                 VStack {
                     ProgressView()
                     Text("Loading Questions...")
@@ -133,7 +154,9 @@ struct QuizRushView: View {
                 }
 
             case .failed:
+
                 VStack(spacing: 20) {
+
                     Text("Failed to load questions.")
 
                     Button("Retry") {
@@ -145,7 +168,9 @@ struct QuizRushView: View {
                 }
 
             case .loaded:
+
                 VStack {
+
                     Text("Quiz Rush")
                         .font(.largeTitle)
                         .bold()
@@ -153,6 +178,7 @@ struct QuizRushView: View {
                     Spacer().frame(height: 25)
 
                     HStack {
+
                         Text("Score: \(vm.score)")
                             .font(.title3)
                             .fontWeight(.bold)
@@ -172,13 +198,17 @@ struct QuizRushView: View {
                         .font(.title2)
                         .multilineTextAlignment(.center)
                         .padding()
-
+                    
                     Spacer().frame(height: 40)
 
                     ForEach(vm.shuffledAnswers, id: \.self) { answer in
+
                         Button {
+
                             vm.answerTapped(answer)
+
                         } label: {
+
                             Text(answer.htmlDecoded)
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
@@ -194,11 +224,14 @@ struct QuizRushView: View {
                     Text("Question \(vm.currentIndex + 1) of 10")
                         .font(.headline)
                         .fontWeight(.bold)
+                    
                 }
                 .padding()
 
             case .finished:
+
                 VStack(spacing: 25) {
+
                     Text("Well Done!")
                         .font(.largeTitle)
 
@@ -210,7 +243,7 @@ struct QuizRushView: View {
                         .bold()
 
                     Text("Best Streak: \(vm.streak)")
-
+                    
                     Text("High Score: \(vm.bestScore)")
                         .font(.title3)
                         .foregroundColor(.yellow)
@@ -234,4 +267,8 @@ struct QuizRushView: View {
             await vm.loadQuiz()
         }
     }
+}
+
+#Preview {
+    QuizRushView()
 }

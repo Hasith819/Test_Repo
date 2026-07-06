@@ -1,34 +1,32 @@
 //
-//  SettingsTabView.swift
+//  SettingsTab.swift
 //  ios-project
 //
-//  Created by student6 on 2026-07-05.
+//  Created by student6 on 2026-07-06.
 //
 
 import SwiftUI
 
 struct SettingsTabView: View {
-    @State private var notificationsEnabled = true
-    @State private var dailyChallengeTime = Date()
-    @State private var showResetConfirmation = false
-
     var body: some View {
-        Form {
-            Section("Daily Challenge") {
-                Toggle("Notifications", isOn: $notificationsEnabled)
-                DatePicker("Time", selection: $dailyChallengeTime, displayedComponents: .hourAndMinute)
-            }
+        VStack(spacing: 20) {
+            Text("Hello, World!")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            Text("Settings")
+                .font(.title)
+                .foregroundStyle(.cyan)
 
-            Section {
-                Button("Reset All Stats", role: .destructive) {
-                    showResetConfirmation = true
-                }
-            }
+            Text("Fixy Automobiles")
+                .font(.title3)
+                .foregroundStyle(.gray)
         }
-        .navigationTitle("Settings")
-        .confirmationDialog("Reset all stats?", isPresented: $showResetConfirmation, titleVisibility: .visible) {
-            Button("Reset", role: .destructive) {
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white)
     }
+}
+
+#Preview {
+    SettingsTabView()
 }

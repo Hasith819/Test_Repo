@@ -1,8 +1,8 @@
 //
-//  HomeTabView.swift
+//  HomeTab.swift
 //  ios-project
 //
-//  Created by student6 on 2026-06-13.
+//  Created by student6 on 2026-07-06.
 //
 
 import SwiftUI
@@ -19,7 +19,7 @@ struct HomeTabView: View {
                     Text("PlayHub")
                         .font(.largeTitle.bold())
 
-                    Text("Three games. One polished shell.")
+                    Text("Crazy games. One polished shell.")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
@@ -72,4 +72,8 @@ struct HomeTabView: View {
         .padding()
         .background(color.gradient, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
+}
+
+#Preview {
+    HomeTabView()
 }
