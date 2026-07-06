@@ -1,51 +1,75 @@
 //
-//  GameSessionStore.swift
+//  StatsTab.swift
 //  ios-project
 //
 //  Created by student6 on 2026-07-06.
 //
 
-import Foundation
+import SwiftUI
 
-final class GameSessionStore {
-    static let shared = GameSessionStore()
+struct StatsTabView: View {
+    @State private var sessions: [GameSession] = GameSessionStore.shared.loadSessions()
 
-    private let sessionsKey = "GameSessions"
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Game Stats")
+                .font(.largeTitle)
+                .fontWeight(.bold)
 
-    private init() {
-        encoder.dateEncodingStrategy = .iso8601
-        decoder.dateDecodingStrategy = .iso8601
-    }
+            Text("Completed sessions: \(sessions.count)")
+                .font(.title3)
+                .foregroundStyle(.cyan)
 
-    func loadSessions() -> [GameSession] {
-        guard let data = UserDefaults.standard.data(forKey: sessionsKey) else {
-            return []
+            if let latest = sessions.sorted(by: { $0.timestamp > $1.timestamp }).first {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Latest session")
+                        .font(.headline)
+
+                    Text("\(latest.mode.displayName) - Score \(latest.score)")
+                    Text(latest.timestamp, style: .date)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            }
+
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(sessions.sorted(by: { $0.timestamp > $1.timestamp })) { session in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(session.mode.displayName)
+                                    .font(.headline)
+                                Text(session.timestamp, style: .date)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Text("\(session.score)")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+            }
+                }
+            }
+
+            Spacer()
         }
-
-        return (try? decoder.decode([GameSession].self, from: data)) ?? []
-    }
-
-    func appendSession(mode: GameMode, score: Int) {
-        var sessions = loadSessions()
-
-        let newSession = GameSession(
-            id: UUID(),
-            mode: mode,
-            score: score,
-            timestamp: Date()
-        )
-
-        sessions.append(newSession)
-        save(sessions)
-    }
-
-    private func save(_ sessions: [GameSession]) {
-        guard let data = try? encoder.encode(sessions) else {
-            return
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.white)
+        .onAppear {
+            sessions = GameSessionStore.shared.loadSessions()
         }
-
-        UserDefaults.standard.set(data, forKey: sessionsKey)
     }
+}
+
+#Preview {
+    StatsTabView()
 }
