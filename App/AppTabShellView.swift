@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct AppTabShellView: View {
+    @EnvironmentObject private var locationService: LocationService
+
     var body: some View {
         TabView {
             NavigationStack {
@@ -37,6 +39,9 @@ struct AppTabShellView: View {
             .tabItem {
                 Label("Settings", systemImage: "gear")
             }
+        }
+        .task {
+            locationService.requestPermission()
         }
     }
 }

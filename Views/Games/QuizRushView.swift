@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import CoreLocation
 
 enum QuizState {
     case loading
@@ -116,6 +117,20 @@ class QuizRushViewModel: ObservableObject {
 struct QuizRushView: View {
 
     @StateObject private var vm = QuizRushViewModel()
+    @EnvironmentObject private var sessionStore: GameSessionStore
+    @EnvironmentObject private var locationService: LocationService
+    @State private var didRecordSession = false
+
+    private func recordSessionIfNeeded() {
+        guard !didRecordSession else { return }
+
+        sessionStore.recordSession(
+            mode: .quizRush,
+            score: vm.score,
+            coordinate: locationService.currentCoordinate
+        )
+        didRecordSession = true
+    }
 
     // MARK: - Button Color
     func buttonColor(for answer: String) -> Color {
@@ -255,12 +270,18 @@ struct QuizRushView: View {
                     }
 
                     Button("Play Again") {
+                        didRecordSession = false
                         Task {
                             await vm.loadQuiz()
                         }
                     }
                     .buttonStyle(.borderedProminent)
                 }
+            }
+        }
+        .onChange(of: vm.state) { newState in
+            if newState == .finished {
+                recordSessionIfNeeded()
             }
         }
         .task {
@@ -271,4 +292,6 @@ struct QuizRushView: View {
 
 #Preview {
     QuizRushView()
+        .environmentObject(GameSessionStore())
+        .environmentObject(LocationService())
 }

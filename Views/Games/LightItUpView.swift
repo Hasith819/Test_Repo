@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import CoreLocation
 
 enum GameLevel {
     case L1, L2, L3, L4
@@ -31,6 +32,10 @@ struct LightItUpView: View {
     @State private var lastTick = Date()
     
     @State private var goToMenu = false
+    @State private var didRecordSession = false
+
+    @EnvironmentObject private var sessionStore: GameSessionStore
+    @EnvironmentObject private var locationService: LocationService
     
     
     @AppStorage("LightItUpHighScore")
@@ -180,6 +185,8 @@ struct LightItUpView: View {
                 if score > highScore {
                     highScore = score
                 }
+
+                recordSessionIfNeeded()
             }
         }
         
@@ -220,10 +227,12 @@ struct LightItUpView: View {
         .alert("Game Over", isPresented: $showGameOver){
             
             Button("Restart") {
+                didRecordSession = false
                 restartGame()
             }
             
             Button("Exit") {
+                recordSessionIfNeeded()
                 goToMenu = true
             }
             
@@ -284,8 +293,21 @@ struct LightItUpView: View {
         showGameOver = false
         cards = ( 0..<3).map { Card(id: $0, isLit: false)}
     }
+
+    func recordSessionIfNeeded() {
+        guard !didRecordSession else { return }
+
+        sessionStore.recordSession(
+            mode: .lightItUp,
+            score: score,
+            coordinate: locationService.currentCoordinate
+        )
+        didRecordSession = true
+    }
 }
 
 #Preview {
     LightItUpView()
+        .environmentObject(GameSessionStore())
+        .environmentObject(LocationService())
 }

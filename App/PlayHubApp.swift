@@ -8,10 +8,15 @@
 import SwiftUI
 
 @main
-struct ios_projectApp: App {
+struct PlayHubApp: App {
+    @StateObject private var sessionStore = GameSessionStore()
+    @StateObject private var locationService = LocationService()
+
     var body: some Scene {
         WindowGroup {
             AppTabShellView()
+                .environmentObject(sessionStore)
+                .environmentObject(locationService)
         }
     }
 }

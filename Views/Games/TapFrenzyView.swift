@@ -10,6 +10,20 @@ import SwiftUI
 struct TapFrenzyView: View {
     
     @StateObject private var vm = TapFrenzyVM()
+    @EnvironmentObject private var sessionStore: GameSessionStore
+    @EnvironmentObject private var locationService: LocationService
+    @State private var didRecordSession = false
+
+    private func recordSessionIfNeeded() {
+        guard !didRecordSession else { return }
+
+        sessionStore.recordSession(
+            mode: .tapFrenzy,
+            score: vm.score,
+            coordinate: locationService.currentCoordinate
+        )
+        didRecordSession = true
+    }
     
     var body: some View {
         VStack {
@@ -45,16 +59,22 @@ struct TapFrenzyView: View {
         
         .onReceive(vm.timer) { _ in
             vm.handleTimerTick()
+
+            if vm.showGameOver {
+                recordSessionIfNeeded()
+            }
         }
     
     
         .alert("Game Over", isPresented: $vm.showGameOver) {
             
             Button("Restart") {
+                didRecordSession = false
                 vm.restartGame()
             }
             
             Button("Exit") {
+                recordSessionIfNeeded()
                 vm.goToMenu = true
             }
             
@@ -74,4 +94,6 @@ struct TapFrenzyView: View {
 
 #Preview {
     TapFrenzyView()
+        .environmentObject(GameSessionStore())
+        .environmentObject(LocationService())
 }
