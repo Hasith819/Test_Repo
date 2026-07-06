@@ -19,163 +19,171 @@ struct StatsTabView: View {
         sessions.count
     }
 
-    private var totalScore: Int {
-        sessions.reduce(0) { $0 + $1.score }
-    }
-
     private var bestSession: GameSession? {
-        sessions.max(by: { $0.score < $1.score })
+        sessions.max { left, right in
+            if left.score == right.score {
+                return left.timestamp < right.timestamp
+            }
+
+            return left.score < right.score
+        }
     }
 
-    private var bestByMode: [(mode: GameMode, score: Int)] {
-        GameMode.allCases.compactMap { mode in
-            let bestScore = sessions.filter { $0.mode == mode }.map(\.
-score).max()
-            guard let bestScore else { return nil }
-            return (mode: mode, score: bestScore)
+    private var bestScoresByMode: [(mode: GameMode, score: Int)] {
+        GameMode.allCases.map { mode in
+            let best = sessions
+                .filter { $0.mode == mode }
+                .map(\.score)
+                .max() ?? 0
+
+            return (mode: mode, score: best)
         }
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                header
-                summaryGrid
-                chartSection
-                bestScoresSection
-                recentGamesSection
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Game Stats")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+
+                    Text("Track totals, best runs, and recent sessions.")
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 12) {
+                    StatCard(title: "Sessions", value: "\(totalSessions)")
+
+                    StatCard(
+                        title: "Best",
+                        value: bestSession.map { "\($0.score)" } ?? "0"
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Best by Mode")
+                        .font(.headline)
+
+                    VStack(spacing: 10) {
+                        ForEach(bestScoresByMode, id: \.mode) { item in
+                            HStack {
+                                Text(item.mode.displayName)
+                                Spacer()
+                                Text("\(item.score)")
+                                    .fontWeight(.semibold)
+                            }
+                            .padding()
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Sessions by Mode")
+                        .font(.headline)
+
+                    if sortedSessions.isEmpty {
+                        Text("No sessions yet. Play a game to populate this chart.")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                    } else {
+                        Chart(sortedSessions.reversed()) { session in
+                            BarMark(
+                                x: .value("Mode", session.mode.displayName),
+                                y: .value("Score", session.score)
+                            )
+                            .foregroundStyle(by: .value("Mode", session.mode.displayName))
+                            .position(by: .value("Session", session.id.uuidString))
+                        }
+                        .frame(height: 240)
+                        .chartLegend(position: .bottom, alignment: .leading)
+                        .padding()
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Recent Games")
+                        .font(.headline)
+
+                    if sortedSessions.isEmpty {
+                        Text("No completed games yet.")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            ForEach(sortedSessions.prefix(10)) { session in
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(session.mode.displayName)
+                                            .font(.headline)
+
+                                        Text(session.timestamp, style: .date)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    Text("\(session.score)")
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                            }
+                        }
+                    }
+                }
+
+                if let latest = sortedSessions.first {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Latest Session")
+                            .font(.headline)
+
+                        Text("\(latest.mode.displayName) - Score \(latest.score)")
+                        Text(latest.timestamp, style: .date)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
+
+                Spacer(minLength: 0)
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.white)
         .onAppear {
             sessions = GameSessionStore.shared.loadSessions()
         }
     }
+}
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Game Stats")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+private struct StatCard: View {
+    let title: String
+    let value: String
 
-            Text("Track totals, bests, and recent sessions from every completed game.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var summaryGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            statCard(title: "Sessions", value: "\(totalSessions)", subtitle: "Completed games")
-            statCard(title: "Total Score", value: "\(totalScore)", subtitle: "Across all sessions")
-            statCard(title: "Best Score", value: bestSession.map { "\($0.score)" } ?? "-", subtitle: bestSession.map { $0.mode.displayName } ?? "No games yet")
-            statCard(title: "Modes", value: "\(GameMode.allCases.count)", subtitle: "Tracked game types")
-        }
-    }
-
-    private var chartSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Score Chart")
-                .font(.headline)
-
-            if sessions.isEmpty {
-                Text("Play a few games to see the chart.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 180, alignment: .center)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-            } else {
-                Chart(sortedSessions) { session in
-                    BarMark(
-                        x: .value("Session", session.timestamp),
-                        y: .value("Score", session.score)
-                    )
-                    .foregroundStyle(by: .value("Mode", session.mode.displayName))
-                }
-                .frame(height: 240)
-                .padding(.top, 4)
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-    }
-
-    private var bestScoresSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Best Scores by Mode")
-                .font(.headline)
-
-            if bestByMode.isEmpty {
-                Text("No scores yet.")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(bestByMode, id: \.mode.id) { item in
-                    HStack {
-                        Text(item.mode.displayName)
-                        Spacer()
-                        Text("\(item.score)")
-                            .fontWeight(.semibold)
-                    }
-                    .padding()
-                    .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
-                }
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-    }
-
-    private var recentGamesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Games")
-                .font(.headline)
-
-            if sortedSessions.isEmpty {
-                Text("No completed games yet.")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(Array(sortedSessions.prefix(8))) { session in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(session.mode.displayName)
-                                .font(.headline)
-                            Text(session.timestamp, style: .date)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        Text("\(session.score)")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                    }
-                    .padding()
-                    .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
-                }
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-    }
-
-    private func statCard(title: String, value: String, subtitle: String) -> some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
 
             Text(value)
-                .font(.title)
-                .fontWeight(.bold)
-
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
