@@ -1,192 +1,104 @@
 //
-//  StatsTab.swift
+//  SettingsTabView.swift
 //  ios-project
 //
 //  Created by student6 on 2026-07-06.
 //
 
 import SwiftUI
-import Charts
 
-struct StatsTabView: View {
-    @State private var sessions: [GameSession] = GameSessionStore.shared.loadSessions()
-
-    private var sortedSessions: [GameSession] {
-        sessions.sorted { $0.timestamp > $1.timestamp }
-    }
-
-    private var totalSessions: Int {
-        sessions.count
-    }
-
-    private var bestSession: GameSession? {
-        sessions.max { left, right in
-            if left.score == right.score {
-                return left.timestamp < right.timestamp
-            }
-
-            return left.score < right.score
-        }
-    }
-
-    private var bestScoresByMode: [(mode: GameMode, score: Int)] {
-        GameMode.allCases.map { mode in
-            let best = sessions
-                .filter { $0.mode == mode }
-                .map(\.score)
-                .max() ?? 0
-
-            return (mode: mode, score: best)
-        }
-    }
-
+struct SettingsTabView: View {
+    
+    @State private var notificationsEnabled = false
+    @State private var challengeTime = Date()
+    
+    @State private var showResetConfirmation = false
+    @State private var showResetSuccess = false
+    
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Game Stats")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-
-                    Text("Track totals, best runs, and recent sessions.")
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 12) {
-                    StatCard(title: "Sessions", value: "\(totalSessions)")
-
-                    StatCard(
-                        title: "Best",
-                        value: bestSession.map { "\($0.score)" } ?? "0"
-                    )
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Best by Mode")
-                        .font(.headline)
-
-                    VStack(spacing: 10) {
-                        ForEach(bestScoresByMode, id: \.mode) { item in
-                            HStack {
-                                Text(item.mode.displayName)
-                                Spacer()
-                                Text("\(item.score)")
-                                    .fontWeight(.semibold)
-                            }
-                            .padding()
-                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        NavigationStack {
+            Form {
+                
+                // MARK: - Daily Challenge
+                Section {
+                    Toggle(isOn: $notificationsEnabled.animation()) {
+                        Label {
+                            Text("Daily Challenge")
+                        } icon: {
+                            Image(systemName: "bell.badge.fill")
+                                .foregroundStyle(.orange)
                         }
                     }
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Sessions by Mode")
-                        .font(.headline)
-
-                    if sortedSessions.isEmpty {
-                        Text("No sessions yet. Play a game to populate this chart.")
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-                    } else {
-                        Chart(sortedSessions.reversed()) { session in
-                            BarMark(
-                                x: .value("Mode", session.mode.displayName),
-                                y: .value("Score", session.score)
-                            )
-                            .foregroundStyle(by: .value("Mode", session.mode.displayName))
-                            .position(by: .value("Session", session.id.uuidString))
-                        }
-                        .frame(height: 240)
-                        .chartLegend(position: .bottom, alignment: .leading)
-                        .padding()
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                    
+                    if notificationsEnabled {
+                        DatePicker(
+                            "Reminder Time",
+                            selection: $challengeTime,
+                            displayedComponents: .hourAndMinute
+                        )
+                        .datePickerStyle(.compact)
                     }
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    Text(notificationsEnabled
+                         ? "You'll get a reminder every day at the selected time to play your daily challenge."
+                         : "Turn this on to get a daily reminder to come back and play.")
                 }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Recent Games")
-                        .font(.headline)
-
-                    if sortedSessions.isEmpty {
-                        Text("No completed games yet.")
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-                    } else {
-                        LazyVStack(spacing: 12) {
-                            ForEach(sortedSessions.prefix(10)) { session in
-                                HStack(alignment: .top) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(session.mode.displayName)
-                                            .font(.headline)
-
-                                        Text(session.timestamp, style: .date)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-
-                                    Spacer()
-
-                                    Text("\(session.score)")
-                                        .font(.title3)
-                                        .fontWeight(.semibold)
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
-                            }
+                
+                // MARK: - Data
+                Section {
+                    Button(role: .destructive) {
+                        showResetConfirmation = true
+                    } label: {
+                        Label {
+                            Text("Reset All Stats")
+                                .foregroundStyle(.red)
+                        } icon: {
+                            Image(systemName: "trash.fill")
+                                .foregroundStyle(.red)
                         }
                     }
+                } header: {
+                    Text("Data")
+                } footer: {
+                    Text("This permanently deletes your scores, high scores, and session history across all games.")
                 }
-
-                if let latest = sortedSessions.first {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Latest Session")
-                            .font(.headline)
-
-                        Text("\(latest.mode.displayName) - Score \(latest.score)")
-                        Text(latest.timestamp, style: .date)
+                
+                // MARK: - About
+                Section {
+                    HStack {
+                        Label("Version", systemImage: "info.circle")
+                        Spacer()
+                        Text("1.0.0")
                             .foregroundStyle(.secondary)
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                } header: {
+                    Text("About")
                 }
-
-                Spacer(minLength: 0)
             }
-            .padding()
+            .navigationTitle("Settings")
+            .confirmationDialog(
+                "Reset all stats?",
+                isPresented: $showResetConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Reset Everything", role: .destructive) {
+                    showResetSuccess = true
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This action cannot be undone. All scores and game history will be permanently deleted.")
+            }
+            .alert("Stats Reset", isPresented: $showResetSuccess) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("All your stats have been cleared.")
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.white)
-        .onAppear {
-            sessions = GameSessionStore.shared.loadSessions()
-        }
-    }
-}
-
-private struct StatCard: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(value)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
 #Preview {
-    StatsTabView()
+    SettingsTabView()
 }
